@@ -7,6 +7,7 @@
 #include <linux/sched/clock.h>
 
 #include <linux/soc/mediatek/mtk-cmdq-ext.h>
+#include <soc/mediatek/smi.h>
 
 #include "mtk_cam-fmt_utils.h"
 #include "mtk_cam.h"
@@ -1992,7 +1993,8 @@ static void trigger_error_dump(struct mtk_cam_job *job,
 		 job->scen_str, desc, warn_desc);
 
 	if (!job_debug_exception_dump(job, desc)) {
-
+		if (!strcmp(desc, MSG_CAMSV_ERROR))
+			mtk_smi_dbg_hang_detect("camsys-camsv");
 		job_dump_engines_debug_status(job);
 
 		mtk_cam_event_error(&ctx->cam_ctrl, desc);
@@ -5002,7 +5004,9 @@ static bool test_do_engine_reset_for_recovery(struct mtk_cam_ctx *ctx)
 		return true;
 	}
 
-	pr_info("%s: ctx-%d skipped\n", __func__, ctx->stream_id);
+	pr_info("%s: ctx-%d skipped sw_recovery_ts:%llu_%llu\n",
+		__func__, ctx->stream_id, ctx->sw_recovery_ts, ts);
+
 	return false;
 }
 
@@ -5123,7 +5127,7 @@ int job_handle_done(struct mtk_cam_job *job)
 		debug_ts[0] = '\0';
 		debug_str_local_ts(job, debug_ts, sizeof(debug_ts));
 
-		dev_info(ctx->cam->dev, "%s: ctx-%d f_seq:0x%x req:%s(%d) pipe:0x%x ts:%lld%s%s\n",
+		dev_dbg(ctx->cam->dev, "%s: ctx-%d f_seq:0x%x req:%s(%d) pipe:0x%x ts:%lld%s%s\n",
 			 __func__, ctx->stream_id,
 			 job->frame_seq_no,
 			 job->req->debug_str, job->req_seq,
@@ -5280,3 +5284,4 @@ int mtk_cam_job_update_clk_switching(struct mtk_cam_job *job, bool begin)
 	return mtk_cam_dvfs_switch_begin(&cam->dvfs, ctx->stream_id,
 					 freq_hz, boostable);
 }
+

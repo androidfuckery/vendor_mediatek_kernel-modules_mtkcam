@@ -24,6 +24,10 @@
 #include "mtk_cam-trace.h"
 #include "mtk_cam-job_utils.h"
 
+static unsigned int disable_recover_flow = 0;
+module_param(disable_recover_flow, uint, 0644);
+MODULE_PARM_DESC(disable_recover_flow, "disable_recover_flow");
+
 #define WATCHDOG_INTERVAL_MS		400
 /*
  * note:
@@ -2303,6 +2307,12 @@ int mtk_cam_ctrl_dump_request(struct mtk_cam_device *cam,
 		goto SKIP_SCHEDULE_WORK;
 	}
 
+	if (ctrl->hw_hang_count_down != 0) {
+		mtk_cam_ctrl_put(ctrl);
+		complete(&wd->work_complete);
+		goto SKIP_SCHEDULE_WORK;
+	}
+
 	mtk_cam_watchdog_schedule_job_dump(wd, desc);
 
 	mtk_cam_ctrl_put(ctrl);
@@ -2329,6 +2339,6 @@ int mtk_cam_ctrl_notify_hw_hang(struct mtk_cam_device *cam,
 	 * count frames before doing recovery to avoid various hw timing.
 	 * 'set 2 to enable recovery'
 	 */
-	ctrl->hw_hang_count_down = 0;
+	ctrl->hw_hang_count_down = (disable_recover_flow) ? 0 : 2;
 	return 0;
 }

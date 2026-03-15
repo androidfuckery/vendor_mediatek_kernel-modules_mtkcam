@@ -1438,15 +1438,11 @@ void camsv_handle_err(
 	if (!(data->err_tags) && (err_status & CAMSVCENTRAL_DMA_SRAM_FULL_ST)) {
 		dev_info_ratelimited(sv_dev->dev, "camsv dma fifo full\n");
 		mtk_cam_seninf_dump_current_status(ctx->seninf);
-		mtk_smi_dbg_hang_detect("camsys-camsv");
 
-		if (atomic_read(&sv_dev->is_seamless))
+		if (atomic_read(&sv_dev->is_seamless)) {
+			mtk_cam_seninf_dump_current_status(ctx->seninf);
 			mtk_cam_ctrl_dump_request(sv_dev->cam, CAMSYS_ENGINE_CAMSV, sv_dev->id,
 				frame_idx_inner, MSG_CAMSV_SEAMLESS_ERROR);
-		else {
-			if (cur_platform->hw->platform_id == 6989)
-				mtk_cam_ctrl_dump_request(sv_dev->cam, CAMSYS_ENGINE_CAMSV, sv_dev->id,
-					frame_idx_inner, MSG_CAMSV_ERROR);
 		}
 
 		mtk_cam_ctrl_notify_hw_hang(sv_dev->cam,
@@ -2093,6 +2089,13 @@ static int mtk_camsv_of_probe(struct platform_device *pdev,
 					pdev->dev.of_node, "mediatek,larbs", i);
 		if (!larb_node) {
 			dev_info(dev, "failed to get larb node\n");
+			continue;
+		}
+
+		ret = of_property_read_u32(larb_node, "mediatek,larb-id",
+								   &sv_dev->larb_id);
+		if (ret) {
+			dev_info(dev, "missing larb id property\n");
 			continue;
 		}
 
